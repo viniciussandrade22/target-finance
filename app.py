@@ -6,7 +6,6 @@ import numpy as np
 st.set_page_config(page_title="Target Finance Simulator", layout="wide", initial_sidebar_state="expanded")
 
 # --- TRUQUE DE DESIGN (CSS) ---
-# Aumenta a largura da barra lateral (sidebar) e destaca o fundo
 st.markdown(
     """
     <style>
@@ -17,7 +16,7 @@ st.markdown(
         }
     </style>
     """,
-    unsafe_style_code=True
+    unsafe_allow_html=True
 )
 
 # --- BARRA LATERAL (SIDEBAR) ---
@@ -43,7 +42,9 @@ dados_evolucao = []
 
 for mes in range(1, meses + 1):
     rendimento_real = patrimonio_real * taxa_mensal_real
-    patrimonio_real += rendimento_real + patrimonio_real += aporte_mensal
+    # Corrigido: soma o rendimento e o aporte separadamente
+    patrimonio_real += rendimento_real
+    patrimonio_real += aporte_mensal
     total_investido += aporte_mensal
     
     dados_evolucao.append({
@@ -61,7 +62,6 @@ st.title("Target Finance Simulator")
 st.markdown("Projete o crescimento do seu patrimônio de longo prazo expurgando o efeito da inflação.")
 st.markdown("---")
 
-# Cards de Métricas Principais
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(label="PATRIMÔNIO REAL PROJETADO", value=f"R$ {patrimonio_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -72,7 +72,6 @@ with col3:
 
 st.markdown("---")
 
-# Organização por Abas Corporativas (Tabs)
 aba_grafico, aba_tabela = st.tabs(["Gráfico de Evolução", "Tabela Detalhada"])
 
 with aba_grafico:
