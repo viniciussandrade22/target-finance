@@ -43,8 +43,7 @@ dados_evolucao = []
 
 for mes in range(1, meses + 1):
     rendimento_real = patrimonio_real * taxa_mensal_real
-    patrimonio_real += rendimento_real + i_mensal = aporte_mensal if mes > 0 else 0 # ajuste se aporte começa no mês 1
-    patrimonio_real += aporte_mensal
+    patrimonio_real += rendimento_real + patrimonio_real += aporte_mensal
     total_investido += aporte_mensal
     
     dados_evolucao.append({
@@ -78,12 +77,10 @@ aba_grafico, aba_tabela = st.tabs(["Gráfico de Evolução", "Tabela Detalhada"]
 
 with aba_grafico:
     st.subheader("Curva de Crescimento Patrimonial Exponencial")
-    # Gráfico de linha simples e limpo
     st.line_chart(df.set_index("Mês")[["Patrimônio Total (Real)", "Total Investido"]])
 
 with aba_tabela:
     st.subheader("Evolução Mensal dos Saldos")
-    # Formatação da tabela para exibição de valores limpos
     df_formatado = df.copy()
     df_formatado["Patrimônio Total (Real)"] = df_formatado["Patrimônio Total (Real)"].map(lambda x: f"R$ {x:,.2f}")
     df_formatado["Total Investido"] = df_formatado["Total Investido"].map(lambda x: f"R$ {x:,.2f}")
