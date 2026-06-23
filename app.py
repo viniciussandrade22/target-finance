@@ -1,155 +1,90 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 
-# 1. CONFIGURAÇÃO DA PÁGINA (Tema Corporativo)
-st.set_page_config(
-    page_title="Target Finance - Simulador",
-    page_icon="🎯",
-    layout="wide"
-)
+# Configuração da página para o tema escuro/amplo
+st.set_page_config(page_title="Target Finance Simulator", layout="wide", initial_sidebar_state="expanded")
 
-# Estilização visual dos blocos de resultado (KPIs)
-st.markdown("""
+# --- TRUQUE DE DESIGN (CSS) ---
+# Aumenta a largura da barra lateral (sidebar) e destaca o fundo
+st.markdown(
+    """
     <style>
-    .kpi-box { 
-        padding: 20px; 
-        border-radius: 8px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-        margin-bottom: 20px; 
-    }
+        [data-testid="stSidebar"] {
+            min-width: 340px;
+            max-width: 340px;
+            background-color: #1a1c23;
+        }
     </style>
-""", unsafe_allow_html=True)
-
-# Topo do Aplicativo
-st.title("🎯 Target Finance | Simulador de Projeção Real")
-st.caption("Projete o crescimento do seu patrimônio de longo prazo expurgando o efeito da inflação.")
-
-st.divider()
-
-# 2. BARRA LATERAL (SIDEBAR) - Onde as pessoas inserem as informações delas
-st.sidebar.header("⚙️ Suas Informações")
-
-patrimonio_inicial = st.sidebar.number_input(
-    "Patrimônio Inicial Atual (R$)", 
-    min_value=0.0, value=10000.0, step=1000.0, format="%.2f"
+    """,
+    unsafe_style_code=True
 )
 
-aporte_mensal = st.sidebar.number_input(
-    "Aporte Mensal Estimado (R$)", 
-    min_value=0.0, value=1500.0, step=100.0, format="%.2f"
-)
+# --- BARRA LATERAL (SIDEBAR) ---
+st.sidebar.header("Parâmetros do Simulador")
+st.sidebar.markdown("---")
 
-taxa_nominal_ano = st.sidebar.slider(
-    "Taxa de Juros Nominal (% ao ano)", 
-    min_value=0.0, max_value=30.0, value=10.5, step=0.1
-) / 100
+patrimonio_inicial = st.sidebar.number_input("Patrimônio Inicial Atual (R$)", min_value=0.0, value=10000.0, step=1000.0)
+aporte_mensal = st.sidebar.number_input("Aporte Mensal Estimado (R$)", min_value=0.0, value=1500.0, step=100.0)
+taxa_juros_nominal = st.sidebar.slider("Taxa de Juros Nominal (% ao ano)", min_value=0.0, max_value=30.0, value=10.0, step=0.5)
+inflacao_estimada = st.sidebar.slider("Inflação Estimada (% ao ano - IPCA)", min_value=0.0, max_value=20.0, value=4.0, step=0.1)
+anos = st.sidebar.number_input("Tempo Alvo da Projeção (Anos)", min_value=1, max_value=50, value=15, step=1)
 
-inflacao_ano = st.sidebar.slider(
-    "Inflação Estimada (% ao ano - IPCA)", 
-    min_value=0.0, max_value=20.0, value=4.0, step=0.1
-) / 100
+# --- CÁLCULOS MATEMÁTICOS ---
+meses = anos * 12
+taxa_mensal_nominal = (1 + taxa_juros_nominal / 100) ** (1 / 12) - 1
+taxa_mensal_inflacao = (1 + inflacao_estimada / 100) ** (1 / 12) - 1
+taxa_mensal_real = (1 + taxa_mensal_nominal) / (1 + taxa_mensal_inflacao) - 1
 
-anos_projecao = st.sidebar.number_input(
-    "Tempo Alvo da Projeção (Anos)", 
-    min_value=1, max_value=50, value=15, step=1
-)
+patrimonio_real = patrimonio_inicial
+total_investido = patrimonio_inicial
 
-# 3. O CÉREBRO MATEMÁTICO (Fórmula de Fisher e Equivalência de Juros)
-taxa_real_ano = ((1 + taxa_nominal_ano) / (1 + inflacao_ano)) - 1
-taxa_real_mes = ((1 + taxa_real_ano) ** (1/12)) - 1
-total_meses = anos_projecao * 12
+dados_evolucao = []
 
-# Gerando a linha do tempo (Dataframe) mês a mês
-meses = np.arange(1, total_meses + 1)
-anos_linha = np.ceil(meses / 12).astype(int)
-
-patr_inicial_lista = []
-aportes_lista = []
-rendimentos_lista = []
-patr_final_lista = []
-
-saldo_atual = patrimonio_inicial
-
-for m in meses:
-    p_ini = saldo_atual
-    apo = aporte_mensal
-    rend = (p_ini + apo) * taxa_real_mes
-    p_fin = p_ini + apo + rend
+for mes in range(1, meses + 1):
+    rendimento_real = patrimonio_real * taxa_mensal_real
+    patrimonio_real += rendimento_real + i_mensal = aporte_mensal if mes > 0 else 0 # ajuste se aporte começa no mês 1
+    patrimonio_real += aporte_mensal
+    total_investido += aporte_mensal
     
-    patr_inicial_lista.append(p_ini)
-    aportes_lista.append(apo)
-    rendimentos_lista.append(rend)
-    patr_final_lista.append(p_fin)
-    
-    saldo_atual = p_fin
+    dados_evolucao.append({
+        "Mês": mes,
+        "Ano": int(np.ceil(mes / 12)),
+        "Patrimônio Total (Real)": patrimonio_real,
+        "Total Investido": total_investido
+    })
 
-df = pd.DataFrame({
-    "Mês": meses,
-    "Ano": anos_linha,
-    "Patrimônio Inicial": patr_inicial_lista,
-    "Aporte": aportes_lista,
-    "Rendimento Real": rendimentos_lista,
-    "Patrimônio Final": patr_final_lista
-})
+df = pd.DataFrame(dados_evolucao)
+ganho_juros_real = patrimonio_real - total_investido
 
-# 4. EXIBIÇÃO DOS RESULTADOS (Cards de Destaque)
-patrimonio_final_num = df["Patrimônio Final"].iloc[-1]
-total_aportado_num = patrimonio_inicial + (aporte_mensal * total_meses)
-total_juros_num = patrimonio_final_num - total_aportado_num
+# --- CORPO PRINCIPAL DO SITE ---
+st.title("Target Finance Simulator")
+st.markdown("Projete o crescimento do seu patrimônio de longo prazo expurgando o efeito da inflação.")
+st.markdown("---")
 
+# Cards de Métricas Principais
 col1, col2, col3 = st.columns(3)
-
 with col1:
-    st.markdown(
-        f"<div class='kpi-box' style='background-color: #E6F4EA; border-left: 5px solid #10B981;'>"
-        f"<p style='margin:0; color:#555; font-size:14px;'><b>PATRIMÔNIO REAL PROJETADO</b></p>"
-        f"<h2 style='margin:0; color:#10B981;'>R$ {patrimonio_final_num:,.2f}</h2>"
-        f"</div>", unsafe_allow_html=True
-    )
-
+    st.metric(label="PATRIMÔNIO REAL PROJETADO", value=f"R$ {patrimonio_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 with col2:
-    st.markdown(
-        f"<div class='kpi-box' style='background-color: #F4F7FC; border-left: 5px solid #0B1B3D;'>"
-        f"<p style='margin:0; color:#555; font-size:14px;'><b>TOTAL QUE SAIU DO SEU BOLSO</b></p>"
-        f"<h2 style='margin:0; color:#0B1B3D;'>R$ {total_aportado_num:,.2f}</h2>"
-        f"</div>", unsafe_allow_html=True
-    )
-
+    st.metric(label="TOTAL QUE SAIU DO SEU BOLSO", value=f"R$ {total_investido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 with col3:
-    st.markdown(
-        f"<div class='kpi-box' style='background-color: #FFF9E6; border-left: 5px solid #F59E0B;'>"
-        f"<p style='margin:0; color:#555; font-size:14px;'><b>GANHO EM JUROS REAIS</b></p>"
-        f"<h2 style='margin:0; color:#F59E0B;'>R$ {total_juros_num:,.2f}</h2>"
-        f"</div>", unsafe_allow_html=True
-    )
+    st.metric(label="GANHO EM JUROS REAIS", value=f"R$ {ganho_juros_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-# 5. GRÁFICO INTERATIVO (Plotly)
-fig = go.Figure()
-fig.add_trace(go.Scatter(
-    x=df["Mês"], y=df["Patrimônio Final"],
-    mode='lines', name='Patrimônio Líquido',
-    line=dict(color='#10B981', width=3)
-))
+st.markdown("---")
 
-fig.update_layout(
-    title="Curva de Crescimento Patrimonial Exponencial (Descontada a Inflação)",
-    xaxis_title="Tempo (Meses)",
-    yaxis_title="Valor Acumulado (R$)",
-    template="plotly_white",
-    height=450,
-    hovermode="x"
-)
-st.plotly_chart(fig, use_container_width=True)
+# Organização por Abas Corporativas (Tabs)
+aba_grafico, aba_tabela = st.tabs(["Gráfico de Evolução", "Tabela Detalhada"])
 
-# 6. TABELA DE DADOS BRUTOS (Expansível para quem quiser analisar os números)
-with st.expander("🔍 Visualizar Tabela de Evolução Mês a Mês"):
-    st.dataframe(
-        df.style.format({
-            "Patrimônio Inicial": "R$ {:.2f}",
-            "Aporte": "R$ {:.2f}",
-            "Rendimento Real": "R$ {:.2f}",
-            "Patrimônio Final": "R$ {:.2f}"
-        }), use_container_width=True
-    )
+with aba_grafico:
+    st.subheader("Curva de Crescimento Patrimonial Exponencial")
+    # Gráfico de linha simples e limpo
+    st.line_chart(df.set_index("Mês")[["Patrimônio Total (Real)", "Total Investido"]])
+
+with aba_tabela:
+    st.subheader("Evolução Mensal dos Saldos")
+    # Formatação da tabela para exibição de valores limpos
+    df_formatado = df.copy()
+    df_formatado["Patrimônio Total (Real)"] = df_formatado["Patrimônio Total (Real)"].map(lambda x: f"R$ {x:,.2f}")
+    df_formatado["Total Investido"] = df_formatado["Total Investido"].map(lambda x: f"R$ {x:,.2f}")
+    st.dataframe(df_formatado, use_container_width=True)
